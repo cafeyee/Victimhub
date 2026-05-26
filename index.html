@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+
 <html lang="en"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1" name="viewport"/><title>NZP Victim Hub Low-fi Prototype v1.13</title>
 <script type="text/javascript">
     (function(c,l,a,r,i,t,y){
@@ -43,28 +44,116 @@
 </div></div></div></section>
 <section class="page" id="feedback"><div class="hero"><div class="hero-inner"><h1>Give feedback</h1><p>Share feedback about your experience with Police, including what went well, what could be improved, or how to make a complaint to Police or the IPCA.</p></div></div><div class="breadcrumb"><div>Home &gt; Advice &amp; Services &gt; <a href="#home">Advice for victims</a> &gt; Give feedback</div></div><div class="wrap layout"><aside class="side"><nav aria-label="Advice for victims pages" class="navbox"><a class="parent" href="#home">Advice for victims</a><a href="#information">Information for victims</a><a href="#support">Support for victims</a><a href="#report">Report a crime</a><a href="#next">What happens next</a><a href="#safe">Keeping safe</a></nav></aside><div><section class="overview-section"><h2>Overview</h2><p>This section helps people find the right pathway to share feedback, raise a concern, or make a complaint about Police conduct or standard of service.</p></section><div class="row-list"><div class="line-row"><strong>Give feedback to Police</strong><p>Tell Police what went well, what could be improved, or what happened during your experience.</p><a href="#feedback">Go to Police feedback page</a></div><div class="line-row"><strong>Make a complaint to IPCA</strong><p>Contact the Independent Police Conduct Authority if you want to make a complaint about Police conduct or standard of service.</p><a href="#feedback">Go to IPCA</a></div></div></div></div></section>
 </main><footer class="footer"><div class="footer-inner"><div><h3>Get to know us</h3><a href="#home">About us</a><a href="#home">Publications</a></div><div><h3>Advice &amp; Services</h3><a href="#home">Advice for victims</a><a href="#report">Report a crime</a></div><div><h3>Useful resources</h3><a href="#report-non">105 online</a><a href="#safe">Keeping safe</a></div><div><h3>Connect</h3><a href="#feedback">Contact</a><a href="#feedback">Feedback</a></div></div></footer>
-<script>function showPage(){
+<script>(function(){
   const defaultPageId = 'home';
-  const hash = (location.hash || '#' + defaultPageId).replace('#','');
-  const target = document.getElementById(hash);
-  const targetPage = target ? (target.classList.contains('page') ? target : target.closest('.page')) : document.getElementById(defaultPageId);
-  const activePage = targetPage || document.getElementById(defaultPageId);
+  const pageTitles = {
+    home: 'Advice for victims',
+    information: 'Information for victims',
+    support: 'Support for victims',
+    report: 'Report a crime',
+    next: 'What happens next',
+    safe: 'Keeping safe',
+    feedback: 'Give feedback'
+  };
+  let lastTrackedKey = '';
 
-  document.querySelectorAll('.page').forEach(page => {
-    page.classList.toggle('active', page === activePage);
-  });
+  function getHashId(){
+    return (location.hash || '#' + defaultPageId).replace('#','') || defaultPageId;
+  }
 
-  requestAnimationFrame(() => {
+  function getActivePageForTarget(target){
+    if (!target) return document.getElementById(defaultPageId);
+    if (target.classList && target.classList.contains('page')) return target;
+    return target.closest ? target.closest('.page') : document.getElementById(defaultPageId);
+  }
+
+  function getSectionTitle(target, activePage){
     if (target && target !== activePage) {
-      target.scrollIntoView({behavior:'smooth', block:'start'});
-    } else {
-      window.scrollTo({top:0, behavior:'smooth'});
+      const heading = target.querySelector && target.querySelector('h1,h2,h3,h4');
+      if (heading) return heading.textContent.trim();
     }
+    const pageHeading = activePage && activePage.querySelector('.hero h1, h1');
+    return pageHeading ? pageHeading.textContent.trim() : (pageTitles[defaultPageId] || defaultPageId);
+  }
+
+  function sendClarityPageView(activePage, target){
+    if (!window.clarity || !activePage) return;
+
+    const pageId = activePage.id || defaultPageId;
+    const targetId = target && target.id ? target.id : pageId;
+    const pageTitle = pageTitles[pageId] || getSectionTitle(target, activePage) || pageId;
+    const sectionTitle = getSectionTitle(target, activePage) || pageTitle;
+    const virtualPath = location.pathname + location.search + '#' + targetId;
+    const trackedKey = pageId + '|' + targetId + '|' + virtualPath;
+
+    if (trackedKey === lastTrackedKey) return;
+    lastTrackedKey = trackedKey;
+
+    // Custom tags make recordings and heatmaps filterable in Microsoft Clarity.
+    window.clarity('set', 'prototype_page_id', pageId);
+    window.clarity('set', 'prototype_page_title', pageTitle);
+    window.clarity('set', 'prototype_section_id', targetId);
+    window.clarity('set', 'prototype_section_title', sectionTitle);
+    window.clarity('set', 'prototype_virtual_path', virtualPath);
+
+    // Custom events mark every hash-routed page or section view inside this single HTML file.
+    window.clarity('event', 'prototype_page_view');
+    window.clarity('event', 'prototype_page_view_' + pageId);
+  }
+
+  window.showPage = function(){
+    const id = getHashId();
+    const target = document.getElementById(id) || document.getElementById(defaultPageId);
+    const activePage = getActivePageForTarget(target) || document.getElementById(defaultPageId);
+
+    document.querySelectorAll('.page').forEach(page => {
+      page.classList.toggle('active', page === activePage);
+    });
+
+    requestAnimationFrame(() => {
+      if (target && target !== activePage) {
+        target.scrollIntoView({behavior:'smooth', block:'start'});
+      } else {
+        window.scrollTo({top:0, behavior:'smooth'});
+      }
+      sendClarityPageView(activePage, target);
+    });
+  };
+
+  window.addEventListener('hashchange', window.showPage);
+  window.addEventListener('load', window.showPage);
+  if (document.readyState !== 'loading') window.showPage();
+  else document.addEventListener('DOMContentLoaded', window.showPage);
+})();
+
+function toggleAcc(btn){
+  const panel=btn.nextElementSibling;
+  const open=!panel.classList.contains('open');
+  panel.classList.toggle('open',open);
+  btn.setAttribute('aria-expanded', String(open));
+  const s=btn.querySelector('span');
+  if(s)s.textContent=open?'−':'+';
+}
+function setGroup(id,open){
+  const root=document.getElementById(id);
+  if(!root)return;
+  root.querySelectorAll('.acc-trigger').forEach(btn=>{
+    const panel=btn.nextElementSibling;
+    panel.classList.toggle('open',open);
+    btn.setAttribute('aria-expanded', String(open));
+    const s=btn.querySelector('span');
+    if(s)s.textContent=open?'−':'+';
   });
 }
-window.addEventListener('hashchange', showPage);
-showPage();
-function toggleAcc(btn){const panel=btn.nextElementSibling;const open=!panel.classList.contains('open');panel.classList.toggle('open',open);btn.setAttribute('aria-expanded', String(open));const s=btn.querySelector('span');if(s)s.textContent=open?'−':'+'}
-function setGroup(id,open){const root=document.getElementById(id);if(!root)return;root.querySelectorAll('.acc-trigger').forEach(btn=>{const panel=btn.nextElementSibling;panel.classList.toggle('open',open);btn.setAttribute('aria-expanded', String(open));const s=btn.querySelector('span');if(s)s.textContent=open?'−':'+'})}
-function toggleQuickExit(force){const bar=document.getElementById('qeBar');const btn=document.querySelector('.qe-toggle');const open=force===undefined?!bar.classList.contains('open'):force;bar.classList.toggle('open',open);btn.setAttribute('aria-expanded',String(open))}
-window.addEventListener('scroll',()=>document.getElementById('backtop').classList.toggle('visible',window.scrollY>320));</script></body></html>
+function toggleQuickExit(force){
+  const bar=document.getElementById('qeBar');
+  const btn=document.querySelector('.qe-toggle');
+  if(!bar || !btn)return;
+  const open=force===undefined?!bar.classList.contains('open'):force;
+  bar.classList.toggle('open',open);
+  btn.setAttribute('aria-expanded',String(open));
+}
+window.addEventListener('scroll',()=>{
+  const backtop=document.getElementById('backtop');
+  if(backtop)backtop.classList.toggle('visible',window.scrollY>320);
+});</script></body></html>
